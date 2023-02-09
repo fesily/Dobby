@@ -3,7 +3,8 @@
 #include <vector>
 
 #include <windows.h>
-
+#include <Psapi.h>
+#pragma comment(lib, "Psapi.lib")
 #define LINE_MAX 2048
 
 // ================================================================
@@ -63,57 +64,31 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
 
 std::vector<RuntimeModule> ProcessModuleMap;
 
-static HMODULE enumerateModules(HANDLE hProcess, HMODULE hModuleLast, PIMAGE_NT_HEADERS32 pNtHeader) {
-  MEMORY_BASIC_INFORMATION mbi = {0};
-  for (PBYTE pbLast = (PBYTE)hModuleLast + 0x10000;; pbLast = (PBYTE)mbi.BaseAddress + mbi.RegionSize) {
-    if (VirtualQueryEx(hProcess, (PVOID)pbLast, &mbi, sizeof(mbi)) <= 0) {
-      break;
-    }
-    if (((PBYTE)mbi.BaseAddress + mbi.RegionSize) < pbLast) {
-      break;
-    }
-    if ((mbi.State != MEM_COMMIT) || ((mbi.Protect & 0xff) == PAGE_NOACCESS) || (mbi.Protect & PAGE_GUARD)) {
-      continue;
-    }
-    __try {
-      IMAGE_DOS_HEADER idh;
-      if (!ReadProcessMemory(hProcess, pbLast, &idh, sizeof(idh), NULL)) {
-        continue;
-      }
-      if (idh.e_magic != IMAGE_DOS_SIGNATURE || (DWORD)idh.e_lfanew > mbi.RegionSize ||
-          (DWORD)idh.e_lfanew < sizeof(idh)) {
-        continue;
-      }
-      if (!ReadProcessMemory(hProcess, pbLast + idh.e_lfanew, pNtHeader, sizeof(*pNtHeader), NULL)) {
-        continue;
-      }
-      if (pNtHeader->Signature != IMAGE_NT_SIGNATURE) {
-        continue;
-      }
-      return (HMODULE)pbLast;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-      continue;
-    }
-  }
-  return NULL;
-}
-
 const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
   if (!ProcessMemoryLayout.empty()) {
     ProcessMemoryLayout.clear();
   }
   HANDLE hProcess = GetCurrentProcess();
-  HMODULE hModule = NULL;
-  for (;;) {
-    IMAGE_NT_HEADERS32 inh;
-    if ((hModule = enumerateModules(hProcess, hModule, &inh)) == NULL)
-      break;
-    ProcessModuleMap.push_back({});
-    auto &module = ProcessModuleMap.back();
-    auto ec = GetModuleFileNameA(hModule, module.path, sizeof(module.path));
-    if (ec == 0) {
-      ProcessModuleMap.pop_back();
-      continue;
+  HMODULE hModules[1024];
+  DWORD lNeed = 0;
+  DWORD flags = 0;
+#if defined(_M_IX86)
+  flags = LIST_MODULES_32BIT;
+#else
+  flags = LIST_MODULES_64BIT;
+#endif
+  if (EnumProcessModulesEx(hProcess, hModules, sizeof(hModules), &lNeed, flags) != 0) {
+    lNeed = lNeed / sizeof(HMODULE);
+    for (DWORD i = 0; i < lNeed; i++) {
+      HMODULE module = hModules[i];
+      RuntimeModule rm;
+      if (GetModuleFileNameExA(hProcess, module, rm.path, sizeof(rm.path)) == 0) {
+        ZeroMemory(rm.path, sizeof(rm.path));
+      }
+      MODULEINFO info = {};
+      if (GetModuleInformation(hProcess, module, &info, sizeof(MODULEINFO))) {
+        rm.load_address = info.lpBaseOfDll;
+      }
     }
   }
   return ProcessModuleMap;
