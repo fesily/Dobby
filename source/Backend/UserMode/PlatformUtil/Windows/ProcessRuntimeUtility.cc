@@ -9,14 +9,14 @@
 // ================================================================
 // GetProcessMemoryLayout
 
-static bool memory_region_comparator(MemRange a, MemRange b) {
-  return (a.address > b.address);
+static bool memory_region_comparator(MemRegion a, MemRegion b) {
+  return (a.start > b.start);
 }
 
 // https://gist.github.com/jedwardsol/9d4fe1fd806043a5767affbd200088ca
 
-std::vector<MemRange> ProcessMemoryLayout;
-std::vector<MemRange> ProcessRuntimeUtility::GetProcessMemoryLayout() {
+std::vector<MemRegion> ProcessMemoryLayout;
+const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
   if (!ProcessMemoryLayout.empty()) {
     ProcessMemoryLayout.clear();
   }
@@ -53,7 +53,7 @@ std::vector<MemRange> ProcessRuntimeUtility::GetProcessMemoryLayout() {
       break;
     }
 
-    ProcessMemoryLayout.push_back(MemRange{(void *)region.BaseAddress, region.RegionSize, permission});
+    ProcessMemoryLayout.push_back(MemRegion{(addr_t)(void *)region.BaseAddress, region.RegionSize, permission});
   }
   return ProcessMemoryLayout;
 }
@@ -63,9 +63,58 @@ std::vector<MemRange> ProcessRuntimeUtility::GetProcessMemoryLayout() {
 
 std::vector<RuntimeModule> ProcessModuleMap;
 
-std::vector<RuntimeModule> ProcessRuntimeUtility::GetProcessModuleMap() {
+static HMODULE enumerateModules(HANDLE hProcess, HMODULE hModuleLast, PIMAGE_NT_HEADERS32 pNtHeader) {
+  MEMORY_BASIC_INFORMATION mbi = {0};
+  for (PBYTE pbLast = (PBYTE)hModuleLast + 0x10000;; pbLast = (PBYTE)mbi.BaseAddress + mbi.RegionSize) {
+    if (VirtualQueryEx(hProcess, (PVOID)pbLast, &mbi, sizeof(mbi)) <= 0) {
+      break;
+    }
+    if (((PBYTE)mbi.BaseAddress + mbi.RegionSize) < pbLast) {
+      break;
+    }
+    if ((mbi.State != MEM_COMMIT) || ((mbi.Protect & 0xff) == PAGE_NOACCESS) || (mbi.Protect & PAGE_GUARD)) {
+      continue;
+    }
+    __try {
+      IMAGE_DOS_HEADER idh;
+      if (!ReadProcessMemory(hProcess, pbLast, &idh, sizeof(idh), NULL)) {
+        continue;
+      }
+      if (idh.e_magic != IMAGE_DOS_SIGNATURE || (DWORD)idh.e_lfanew > mbi.RegionSize ||
+          (DWORD)idh.e_lfanew < sizeof(idh)) {
+        continue;
+      }
+      if (!ReadProcessMemory(hProcess, pbLast + idh.e_lfanew, pNtHeader, sizeof(*pNtHeader), NULL)) {
+        continue;
+      }
+      if (pNtHeader->Signature != IMAGE_NT_SIGNATURE) {
+        continue;
+      }
+      return (HMODULE)pbLast;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+      continue;
+    }
+  }
+  return NULL;
+}
+
+const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
   if (!ProcessMemoryLayout.empty()) {
     ProcessMemoryLayout.clear();
+  }
+  HANDLE hProcess = GetCurrentProcess();
+  HMODULE hModule = NULL;
+  for (;;) {
+    IMAGE_NT_HEADERS32 inh;
+    if ((hModule = enumerateModules(hProcess, hModule, &inh)) == NULL)
+      break;
+    ProcessModuleMap.push_back({});
+    auto &module = ProcessModuleMap.back();
+    auto ec = GetModuleFileNameA(hModule, module.path, sizeof(module.path));
+    if (ec == 0) {
+      ProcessModuleMap.pop_back();
+      continue;
+    }
   }
   return ProcessModuleMap;
 }
