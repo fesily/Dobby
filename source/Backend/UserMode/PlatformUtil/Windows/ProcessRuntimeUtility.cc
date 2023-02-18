@@ -68,6 +68,7 @@ const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
   if (!ProcessMemoryLayout.empty()) {
     ProcessMemoryLayout.clear();
   }
+  ProcessModuleMap.clear();
   HANDLE hProcess = GetCurrentProcess();
   HMODULE hModules[1024];
   DWORD lNeed = 0;
@@ -89,6 +90,7 @@ const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
       if (GetModuleInformation(hProcess, module, &info, sizeof(MODULEINFO))) {
         rm.load_address = info.lpBaseOfDll;
       }
+      ProcessModuleMap.emplace_back(std::move(rm));
     }
   }
   return ProcessModuleMap;
@@ -101,5 +103,5 @@ RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
       return module;
     }
   }
-  return RuntimeModule{0};
+  return RuntimeModule{0, 0};
 }
