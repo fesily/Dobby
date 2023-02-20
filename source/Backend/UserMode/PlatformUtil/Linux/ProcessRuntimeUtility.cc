@@ -243,5 +243,5 @@ RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
       return module;
     }
   }
-  return RuntimeModule{0, 0};
+  return RuntimeModule{};
 }

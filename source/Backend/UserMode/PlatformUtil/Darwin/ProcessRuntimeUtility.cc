@@ -95,14 +95,14 @@ PUBLIC void DobbyUpdateModuleMap() {
   mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
   kr = task_info(mach_task_self_, TASK_DYLD_INFO, (task_info_t)&task_dyld_info, &count);
   if (kr != KERN_SUCCESS) {
-    return *modules;
+    return;
   }
 
   struct dyld_all_image_infos *infos = (struct dyld_all_image_infos *)task_dyld_info.all_image_info_addr;
   const struct dyld_image_info *infoArray = infos->infoArray;
   uint32_t infoArrayCount = infos->infoArrayCount;
 
-  RuntimeModule module = {0};
+  RuntimeModule module = {};
   strncpy(module.path, "dummy-placeholder-module", sizeof(module.path));
   module.load_address = 0;
   modules->push_back(module);
@@ -136,5 +136,5 @@ RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
       return module;
     }
   }
-  return RuntimeModule{0, 0};
+  return RuntimeModule{};
 }
