@@ -2,17 +2,17 @@
 #include "common_header.h"
 
 #include <windows.h>
+#include <DbgHelp.h>
 
 #include <string>
+#include <vector>
+#include <filesystem>
+#include <memory>
 #include <string.h>
+#include <format>
 
 #include "PlatformUtil/ProcessRuntimeUtility.h"
 
-#include <vector>
-#include <Windows.h>
-#include <DbgHelp.h>
-#include <filesystem>
-#include <memory>
 #undef LOG_TAG
 #define LOG_TAG "DobbySymbolResolver"
 
@@ -100,15 +100,17 @@ PUBLIC void *DobbySymbolResolver(const char *image_name, const char *symbol_name
   if (!result) {
     SymHandler &handler = GetSymHandler();
     if (handler) {
+      auto moduleName = std::filesystem::path(image_name).filename().replace_extension().string();
+      auto len = moduleName.size() + strlen(symbol_name_pattern) + 1 + 1;
+      auto pattern = std::make_unique<char[]>(len);
+      snprintf(pattern.get(), len, "%s!%s", moduleName.c_str(), symbol_name_pattern);
       ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
       PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
 
       pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
       pSymbol->MaxNameLen = MAX_SYM_NAME;
-      if (SymFromName(handler.get(), symbol_name_pattern, pSymbol)) {
-        if (ProcessRuntimeUtility::GetProcessModule(image_name).load_address == (void *)pSymbol->ModBase) {
-          return (void *)pSymbol->Address;
-        }
+      if (SymFromName(handler.get(), pattern.get(), pSymbol)) {
+        return (void *)pSymbol->Address;
       }
     }
   }
