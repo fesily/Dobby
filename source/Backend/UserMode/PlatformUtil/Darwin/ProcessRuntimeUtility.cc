@@ -86,6 +86,7 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
 
 static std::vector<RuntimeModule> *modules;
 
+extern "C" {
 PUBLIC void DobbyUpdateModuleMap() {
   modules->clear();
 
@@ -115,6 +116,7 @@ PUBLIC void DobbyUpdateModuleMap() {
       modules->push_back(module);
     }
   }
+}
 }
 
 const std::vector<RuntimeModule> &ProcessRuntimeUtility::GetProcessModuleMap() {
