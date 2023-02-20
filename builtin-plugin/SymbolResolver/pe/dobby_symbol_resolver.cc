@@ -16,6 +16,8 @@
 #undef LOG_TAG
 #define LOG_TAG "DobbySymbolResolver"
 
+#pragma comment(lib, "dbghelp.lib")
+
 using SymHandler = std::unique_ptr<void, decltype(&SymCleanup)>;
 inline std::string searchpath(bool SymBuildPath, bool SymUseSymSrv) {
   // Build the sym-path:
