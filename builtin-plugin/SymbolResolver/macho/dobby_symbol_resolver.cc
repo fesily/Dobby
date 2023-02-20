@@ -337,7 +337,7 @@ PUBLIC void *DobbyMachOSymbolResolver(void *header_, const char *symbol_name) {
 PUBLIC void *DobbySymbolResolver(const char *image_name, const char *symbol_name_pattern) {
   uintptr_t result = 0;
 
-  const std::vector<RuntimeModule> modules = ProcessRuntimeUtility::GetProcessModuleMap();
+  const auto& modules = ProcessRuntimeUtility::GetProcessModuleMap();
 
   for (auto iter = modules.begin(); iter != modules.end(); iter++) {
     auto module = *iter;

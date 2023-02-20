@@ -1,4 +1,5 @@
 #include "PlatformUtil/ProcessRuntimeUtility.h"
+#include "common_header.h"
 
 #include <elf.h>
 #include <dlfcn.h>
@@ -98,14 +99,13 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
 // GetProcessModuleMap
 
 static std::vector<RuntimeModule> *modules;
-static std::vector<RuntimeModule> &get_process_map_with_proc_maps() {
-  if (modules == nullptr) {
-    modules = new std::vector<RuntimeModule>();
-  }
+
+PUBLIC void DobbyUpdateModuleMap() {
+  modules->clear();
 
   FILE *fp = fopen("/proc/self/maps", "r");
   if (fp == nullptr)
-    return *modules;
+    return;
 
   while (!feof(fp)) {
     char line_buffer[LINE_MAX + 1];
@@ -146,7 +146,7 @@ static std::vector<RuntimeModule> &get_process_map_with_proc_maps() {
                &path_index) < 7) {
       ERROR_LOG("/proc/self/maps parse failed!");
       fclose(fp);
-      return *modules;
+      return;
     }
 
     // check header section permission
@@ -178,6 +178,14 @@ static std::vector<RuntimeModule> &get_process_map_with_proc_maps() {
   }
 
   fclose(fp);
+}
+
+static std::vector<RuntimeModule> &get_process_map_with_proc_maps() {
+  if (modules == nullptr) {
+    modules = new std::vector<RuntimeModule>();
+  }
+  if (modules->empty())
+    DobbyUpdateModuleMap();
   return *modules;
 }
 
@@ -227,11 +235,11 @@ const std::vector<RuntimeModule> &ProcessRuntimeUtility::GetProcessModuleMap() {
 }
 
 RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
-  auto modules = GetProcessModuleMap();
+  const auto& modules = GetProcessModuleMap();
   for (auto module : modules) {
     if (strstr(module.path, name) != 0) {
       return module;
     }
   }
-  return RuntimeModule{0};
+  return RuntimeModule{0, 0};
 }

@@ -30,6 +30,7 @@
 
 #include "UnifiedInterface/platform-darwin/mach_vm.h"
 #include "PlatformUtil/ProcessRuntimeUtility.h"
+#include "common_header.h"
 
 static bool memory_region_comparator(MemRegion a, MemRegion b) {
   return (a.start < b.start);
@@ -85,10 +86,7 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
 
 static std::vector<RuntimeModule> *modules;
 
-const std::vector<RuntimeModule> &ProcessRuntimeUtility::GetProcessModuleMap() {
-  if (modules == nullptr) {
-    modules = new std::vector<RuntimeModule>();
-  }
+PUBLIC void DobbyUpdateModuleMap() {
   modules->clear();
 
   kern_return_t kr;
@@ -117,16 +115,24 @@ const std::vector<RuntimeModule> &ProcessRuntimeUtility::GetProcessModuleMap() {
       modules->push_back(module);
     }
   }
+}
+
+const std::vector<RuntimeModule> &ProcessRuntimeUtility::GetProcessModuleMap() {
+  if (modules == nullptr) {
+    modules = new std::vector<RuntimeModule>();
+  }
+  if (modules->empty()) 
+    DobbyUpdateModuleMap();
 
   return *modules;
 }
 
 RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
-  auto modules = GetProcessModuleMap();
+  const auto& modules = GetProcessModuleMap();
   for (auto module : modules) {
     if (strstr(module.path, name) != 0) {
       return module;
     }
   }
-  return RuntimeModule{0};
+  return RuntimeModule{0, 0};
 }

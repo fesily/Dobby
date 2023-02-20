@@ -1,5 +1,5 @@
 #include "PlatformUtil/ProcessRuntimeUtility.h"
-
+#include "common_header.h"
 #include <vector>
 
 #include <windows.h>
@@ -62,12 +62,9 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
 // ================================================================
 // GetProcessModuleMap
 
-std::vector<RuntimeModule> ProcessModuleMap;
+static std::vector<RuntimeModule> ProcessModuleMap;
 
-const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
-  if (!ProcessMemoryLayout.empty()) {
-    ProcessMemoryLayout.clear();
-  }
+PUBLIC void DobbyUpdateModuleMap() {
   ProcessModuleMap.clear();
   HANDLE hProcess = GetCurrentProcess();
   HMODULE hModules[1024];
@@ -93,11 +90,19 @@ const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
       ProcessModuleMap.emplace_back(std::move(rm));
     }
   }
+}
+
+const std::vector<RuntimeModule>& ProcessRuntimeUtility::GetProcessModuleMap() {
+  if (!ProcessMemoryLayout.empty()) {
+    ProcessMemoryLayout.clear();
+  }
+  if (ProcessModuleMap.empty())
+    DobbyUpdateModuleMap();
   return ProcessModuleMap;
 }
 
 RuntimeModule ProcessRuntimeUtility::GetProcessModule(const char *name) {
-  std::vector<RuntimeModule> ProcessModuleMap = GetProcessModuleMap();
+  const auto& ProcessModuleMap = GetProcessModuleMap();
   for (auto module : ProcessModuleMap) {
     if (strstr(module.path, name) != 0) {
       return module;

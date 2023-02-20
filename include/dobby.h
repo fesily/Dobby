@@ -173,6 +173,8 @@ int DobbyDestroy(void *address);
 
 const char *DobbyGetVersion();
 
+// update cache modudle map
+void DobbyUpdateModuleMap();
 // symbol resolver
 void *DobbySymbolResolver(const char *image_name, const char *symbol_name);
 

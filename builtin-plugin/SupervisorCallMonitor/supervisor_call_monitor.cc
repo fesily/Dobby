@@ -75,7 +75,7 @@ void supervisor_call_monitor_register_image(void *header) {
 
 void supervisor_call_monitor_register_main_app() {
   const char *main_bundle_udid = fast_get_main_app_bundle_udid();
-  auto module_map = ProcessRuntimeUtility::GetProcessModuleMap();
+  const auto& module_map = ProcessRuntimeUtility::GetProcessModuleMap();
   for (auto module : module_map) {
     if (strstr(module.path, main_bundle_udid)) {
       LOG(2, "[supervisor_call_monitor] %s", module.path);
