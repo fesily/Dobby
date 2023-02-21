@@ -94,6 +94,7 @@ inline SymHandler &GetSymHandler() {
 inline bool is_target_symbol(PSYMBOL_INFO pSymbol, HMODULE hMod) {
   enum {
     SymTagFunction = 5,
+    SymTagData = 7,
     SymTagPublicSymbol = 10,
   };
   #ifndef SYMFLAG_PUBLIC_CODE
@@ -103,8 +104,11 @@ inline bool is_target_symbol(PSYMBOL_INFO pSymbol, HMODULE hMod) {
   if (pSymbol->Flags & SYMFLAG_PUBLIC_CODE) {
     return false;
   }
+  if ((HMODULE)pSymbol->ModBase != hMod) {
+    return false;
+  }
 
-  return (HMODULE)pSymbol->ModBase == hMod && (pSymbol->Tag == SymTagFunction || pSymbol->Tag == SymTagPublicSymbol);
+  return pSymbol->Tag == SymTagFunction || pSymbol->Tag == SymTagPublicSymbol || pSymbol->Tag == SymTagData;
 }
 
 PUBLIC void *DobbySymbolResolver(const char *image_name, const char *symbol_name_pattern) {
