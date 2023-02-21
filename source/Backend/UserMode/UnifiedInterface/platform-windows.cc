@@ -26,7 +26,7 @@ int OSMemory::PageSize() {
 }
 
 void *OSMemory::Allocate(size_t size, MemoryPermission access, void *address) {
-  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocPageSize());
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % PageSize());
   DCHECK_EQ(0, size % PageSize());
 
   void *result = VirtualAlloc(address, size, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS);
