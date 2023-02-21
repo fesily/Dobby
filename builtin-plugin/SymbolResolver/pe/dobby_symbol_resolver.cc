@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <memory>
 #include <string.h>
-#include <format>
 
 #include "PlatformUtil/ProcessRuntimeUtility.h"
 
