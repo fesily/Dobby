@@ -112,11 +112,20 @@ inline bool is_target_symbol(PSYMBOL_INFO pSymbol, HMODULE hMod) {
 }
 
 PUBLIC void *DobbySymbolResolver(const char *image_name, const char *symbol_name_pattern) {
+  HMODULE hmod; 
+  if (image_name) {
+      hmod = LoadLibraryExA(image_name, NULL, DONT_RESOLVE_DLL_REFERENCES);
+  } else {
+    if (!GetModuleHandleEx(0, 0, &hmod)) {
+      return nullptr;
+    }
+  }
+  if (!hmod)
+    return nullptr;
+  
   void *result = NULL;
 
-  std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> hMod{LoadLibraryExA(image_name, NULL, DONT_RESOLVE_DLL_REFERENCES), &FreeLibrary};
-  if (!hMod)
-    return nullptr;
+  std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> hMod{hmod, &FreeLibrary};
   
   result = GetProcAddress(hMod.get(), symbol_name_pattern);
   if (result)
@@ -125,23 +134,31 @@ PUBLIC void *DobbySymbolResolver(const char *image_name, const char *symbol_name
   if (!handler)
     return nullptr;
 
-  auto moduleName = std::filesystem::path(image_name).filename().replace_extension().string();
-  auto len = moduleName.size() + strlen(symbol_name_pattern) + 1 + 1;
-  auto pattern = std::make_unique<char[]>(len);
-  snprintf(pattern.get(), len, "%s!%s", moduleName.c_str(), symbol_name_pattern);
-  ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
-  PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
+  std::unique_ptr<char[]> pattern;
+  size_t len = 0;
+  if (image_name) {
+    auto moduleName = std::filesystem::path(image_name).filename().replace_extension().string();
+    len = moduleName.size() + strlen(symbol_name_pattern) + 1 + 1;
+    pattern = std::make_unique<char[]>(len);
+    snprintf(pattern.get(), len, "%s!%s", moduleName.c_str(), symbol_name_pattern);
+    ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
+    PSYMBOL_INFO pSymbol = (PSYMBOL_INFO)buffer;
 
-  pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-  pSymbol->MaxNameLen = MAX_SYM_NAME;
+    pSymbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+    pSymbol->MaxNameLen = MAX_SYM_NAME;
 
-  if (SymFromName(handler.get(), pattern.get(), pSymbol)) {
-    if (is_target_symbol(pSymbol, hMod.get())) {
-      return (void *)pSymbol->Address;
+    if (SymFromName(handler.get(), pattern.get(), pSymbol)) {
+      if (is_target_symbol(pSymbol, hMod.get())) {
+        return (void *)pSymbol->Address;
+      }
     }
   }
   // enum Symbols in every module
   std::tuple<void*&, HMODULE> ctx {result, (HMODULE)hMod.get()};
+  if (len == 0 || !pattern) {
+    len = strlen(symbol_name_pattern) + 2 + 1;
+    pattern = std::make_unique<char[]>(len);
+  }
   snprintf(pattern.get(), len, "*!%s", symbol_name_pattern);
 
   SymEnumSymbolsEx(handler.get(), 0, pattern.get(),
