@@ -8,10 +8,18 @@
 #include "UnifiedInterface/platform.h"
 
 int GetProtectionFromMemoryPermission(MemoryPermission access) {
-  if (kReadWriteExecute == access)
+  switch (access) {
+  case MemoryPermission::kNoAccess:
+    return PAGE_NOACCESS;
+  case MemoryPermission::kRead:
+    return PAGE_READONLY;
+  case MemoryPermission::kReadWrite:
+    return PAGE_READWRITE;
+  case MemoryPermission::kReadWriteExecute:
     return PAGE_EXECUTE_READWRITE;
-  else if (kReadExecute == access)
+  case MemoryPermission::kReadExecute:
     return PAGE_EXECUTE_READ;
+  }
   UNREACHABLE();
 }
 
