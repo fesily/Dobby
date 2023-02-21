@@ -96,6 +96,13 @@ inline bool is_target_symbol(PSYMBOL_INFO pSymbol, HMODULE hMod) {
     SymTagFunction = 5,
     SymTagPublicSymbol = 10,
   };
+  #ifndef SYMFLAG_PUBLIC_CODE
+  #define SYMFLAG_PUBLIC_CODE 0x00400000
+  #endif
+  // skip public code
+  if (pSymbol->Flags & SYMFLAG_PUBLIC_CODE) {
+    return false;
+  }
 
   return (HMODULE)pSymbol->ModBase == hMod && (pSymbol->Tag == SymTagFunction || pSymbol->Tag == SymTagPublicSymbol);
 }
