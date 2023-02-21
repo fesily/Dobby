@@ -15,22 +15,12 @@ int GetProtectionFromMemoryPermission(MemoryPermission access) {
   UNREACHABLE();
 }
 
-static int AllocPageSize() {
-  static int lastRet = -1;
-  if (lastRet == -1) {
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    lastRet = si.dwAllocationGranularity; // should be used with VirtualAlloc(MEM_RESERVE)
-  }
-  return lastRet;
-}
-
 int OSMemory::PageSize() {
   static int lastRet = -1;
   if (lastRet == -1) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    lastRet = si.dwPageSize; // should be used with VirtualAlloc(MEM_RESERVE)
+    lastRet = max(si.dwPageSize, si.dwAllocationGranularity); // should be used with VirtualAlloc(MEM_RESERVE)
   }
   return lastRet;
 }
