@@ -83,7 +83,7 @@ const std::vector<MemRegion> &ProcessRuntimeUtility::GetProcessMemoryLayout() {
     }
 
 #if 0
-      DLOG(0, "%p --- %p", region_start, region_end);
+      DEBUG_LOG("%p --- %p", region_start, region_end);
 #endif
 
     MemRegion region = MemRegion(region_start, region_end - region_start, permission);
@@ -169,12 +169,12 @@ PUBLIC void DobbyUpdateModuleMap() {
     if (path_buffer[strlen(path_buffer) - 1] == '\n') {
       path_buffer[strlen(path_buffer) - 1] = 0;
     }
-    strncpy(module.path, path_buffer, sizeof(module.path));
+    strncpy(module.path, path_buffer, sizeof(module.path) - 1);
     module.load_address = (void *)region_start;
     modules->push_back(module);
 
 #if 0
-    DLOG(0, "module: %s", module.path);
+    DEBUG_LOG("module: %s", module.path);
 #endif
   }
 
