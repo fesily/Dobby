@@ -37,10 +37,13 @@ void *OSMemory::Allocate(size_t size, MemoryPermission access, void *address) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % PageSize());
   DCHECK_EQ(0, size % PageSize());
 
-  void *result = VirtualAlloc(address, size, MEM_COMMIT | MEM_RESERVE, PAGE_NOACCESS);
-  OSMemory::SetPermission(result, size, kReadWriteExecute);
+  void *result = VirtualAlloc(address, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
   if (result == nullptr)
     return nullptr;
+#if defined (_M_IX86) || defined(_M_X64)
+  memset(result, 0xcc, size);
+#endif
+  OSMemory::SetPermission(result, size, access);
 
   // TODO: if need align
   void *aligned_base = result;
