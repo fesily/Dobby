@@ -1,5 +1,4 @@
 #include "PlatformUtil/ProcessRuntimeUtility.h"
-#include "common_header.h"
 #include <vector>
 
 #include <windows.h>
